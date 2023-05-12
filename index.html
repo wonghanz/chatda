@@ -1,0 +1,127 @@
+import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
+import axios from "axios";
+import { GoogleSignin } from "react-google-signin";
+
+const [messages, setMessages] = useState([]);
+const [message, setMessage] = useState("");
+const [user, setUser] = useState(null);
+const [votes, setVotes] = useState([]);
+const [ai, setAi] = useState(false);
+const [folders, setFolders] = useState([]);
+
+function sendMessage() {
+  // Validate the message
+  if (message.trim() === "") {
+    return;
+  }
+
+  // Send the message to the server
+  axios.post("/messages", {
+    message,
+    user,
+  }).then((response) => {
+    setMessages([...messages, response.data]);
+    setMessage("");
+  }).catch((error) => {
+    console.log(error);
+  });
+}
+
+function handleGoogleSignin() {
+  // Sign in with Google
+  GoogleSignin.signIn().then((user) => {
+    // Set the user state
+    setUser(user);
+  }).catch((error) => {
+    console.log(error);
+  });
+}
+
+function handleSearch() {
+  // Search for messages
+  const query = document.getElementById("search").value;
+  axios.get("/messages?q=" + query).then((response) => {
+    setMessages(response.data);
+  }).catch((error) => {
+    console.log(error);
+  });
+}
+
+function handleExport() {
+  // Export chat history
+  const csv = messages.map((message) => [message.user, message.message]).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const link = document.createElement("a");
+  link.href = window.URL.createObjectURL(blob);
+  link.download = "chat-history.csv";
+  link.click();
+}
+
+function handleTextToSpeech() {
+  // Speak the current message
+  const message = document.getElementById("message").value;
+  var synth = new SpeechSynthesisUtterance(message);
+  synth.speak();
+}
+
+function handleSpeak() {
+  // Speak all messages
+  messages.forEach((message) => {
+    var synth = new SpeechSynthesisUtterance(message.message);
+    synth.speak();
+  });
+}
+
+function handleVote(messageId, vote) {
+  // Vote for a message
+  axios.post("/messages/vote", {
+    messageId,
+    vote,
+  }).then((response) => {
+    setVotes(response.data);
+  }).catch((error) => {
+    console.log(error);
+  });
+}
+
+function handleClick(e) {
+  if (e.target.id === "ai-icon") {
+    setAi(!ai);
+  }
+}
+
+function handleReact(e) {
+  const messageId = e.target.dataset.messageId;
+  const reaction = e.target.dataset.reaction;
+  axios.post("/messages/react", {
+    messageId,
+    reaction,
+  }).then((response) => {
+    setMessages(response.data);
+  }).catch((error) => {
+    console.log(error);
+  });
+}
+
+function handleShare(e) {
+  const messageId = e.target.dataset.messageId;
+  const url = `https://i-plantation.com/messages/${messageId}`;
+  window.open(url);
+}
+
+function handleSave(e) {
+  const messageId = e.target.dataset.messageId;
+  const folderId = e.target.dataset.folderId;
+  axios.post("/messages/save", {
+    messageId,
+    folderId,
+  }).then((response) => {
+    setMessages(response.data);
+  }).catch((error) => {
+    console.log(error);
+  });
+}
+
+function sendFile() {
+  // Get the file from the user
